@@ -18,10 +18,15 @@ function Fail($msg) {
 # ---------------------------------------------------------------------------
 Write-Step "Checking prerequisites"
 
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Fail "Node.js not found. Install Node >= 18." }
-$nodeMajor = [int](node -p "process.versions.node.split('.')[0]")
-if ($nodeMajor -lt 18) { Fail "Node >= 18 required (found $(node -v))." }
-Write-Ok "Node $(node -v)"
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Fail "Node.js not found. Install Node >= 20.9." }
+$nodeVersion = node -p "process.versions.node"
+$nodeParts = $nodeVersion.Split('.')
+$nodeMajor = [int]$nodeParts[0]
+$nodeMinor = [int]$nodeParts[1]
+if ($nodeMajor -lt 20 -or ($nodeMajor -eq 20 -and $nodeMinor -lt 9)) {
+    Fail "Node >= 20.9 required by Next.js 16 (found v$nodeVersion)."
+}
+Write-Ok "Node v$nodeVersion"
 
 if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
     if (Get-Command corepack -ErrorAction SilentlyContinue) {
@@ -134,7 +139,7 @@ Write-Ok "Web typecheck passed"
 # ---------------------------------------------------------------------------
 Write-Step "Starting Synk"
 Write-Host "    API -> http://localhost:4000" -ForegroundColor Gray
-Write-Host "    Web -> http://localhost:3000" -ForegroundColor Gray
+Write-Host "    Web -> http://localhost:3000 (Webpack dev mode)" -ForegroundColor Gray
 Write-Host "    Press Ctrl+C to stop both.`n" -ForegroundColor Gray
 
 Push-Location $Root
