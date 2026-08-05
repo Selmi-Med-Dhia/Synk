@@ -15,12 +15,13 @@
     "prisma:studio": "pnpm --filter api exec prisma studio",
     "lint": "pnpm --filter web lint && pnpm --filter api lint",
     "performance:load": "node scripts/load-meeting.mjs",
-    "security:audit": "node scripts/security-audit.mjs"
+    "security:audit": "node scripts/security-audit.mjs",
+    "dev:web:turbopack": "pnpm --filter web dev:turbopack"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.9.0"
   }
 }
