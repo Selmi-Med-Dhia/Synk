@@ -57,23 +57,11 @@ const AvailabilityGrid = dynamic(
     import("@/components/meetings/availability-grid").then(
       (module) => module.AvailabilityGrid,
     ),
-  {
-    loading: () => (
-      <div
-        className="mt-8 grid min-h-72 place-items-center rounded-lg border border-white/10 bg-black/10 text-sm text-muted-foreground"
-        role="status"
-      >
-        <span className="flex items-center gap-2">
-          <LoaderCircle className="size-4 animate-spin text-primary" />
-          Loading availability calendar…
-        </span>
-      </div>
-    ),
-  },
+  { loading: () => <AvailabilityLoading /> },
 );
 
 export default function PublicMeetingPage() {
-  const { formatDate: localizeDate, t } = useI18n();
+  const { formatDate: localizeDate, formatDuration, t } = useI18n();
   const { token } = useParams<{ token: string }>();
   const queryClient = useQueryClient();
   const {
@@ -94,6 +82,7 @@ export default function PublicMeetingPage() {
     meetingToken: string;
     sessionToken: string;
   }>();
+  const [guidanceSessionToken, setGuidanceSessionToken] = useState<string>();
   const identityConfirmed =
     confirmedSession?.meetingToken === token &&
     confirmedSession.sessionToken === sessionToken;
@@ -158,13 +147,19 @@ export default function PublicMeetingPage() {
     setActiveParticipantToken(localStorage, token, nextToken);
     setEphemeralSession({ meetingToken: token, sessionToken: nextToken });
     setConfirmedSession({ meetingToken: token, sessionToken: nextToken });
+    setGuidanceSessionToken(undefined);
     notifyParticipantStorage();
+    void queryClient.invalidateQueries({
+      queryKey: ["public-meeting", token],
+      exact: true,
+    });
   }
 
   function chooseAnotherParticipant() {
     clearActiveParticipantToken(localStorage, token);
     setEphemeralSession(undefined);
     setConfirmedSession(undefined);
+    setGuidanceSessionToken(undefined);
     notifyParticipantStorage();
   }
 
@@ -179,7 +174,12 @@ export default function PublicMeetingPage() {
     );
     setEphemeralSession({ meetingToken: token, sessionToken: nextToken });
     setConfirmedSession({ meetingToken: token, sessionToken: nextToken });
+    setGuidanceSessionToken(nextToken);
     notifyParticipantStorage();
+    void queryClient.invalidateQueries({
+      queryKey: ["public-meeting", token],
+      exact: true,
+    });
   }
 
   return (
@@ -224,10 +224,16 @@ export default function PublicMeetingPage() {
           </span>
           <span className="flex items-center gap-2">
             <Clock3 className="size-4 text-primary" />
-            {meeting.data.workdayStart}–{meeting.data.workdayEnd} ·{" "}
-            {meeting.data.timezone} · {meeting.data.slotIntervalMinutes}-minute
-            slots · {formatDuration(meeting.data.meetingDurationMinutes)}{" "}
-            meeting
+            {t(
+              "{timezone} · {start}–{end} · {minutes}-minute slots · {duration} meeting",
+              {
+                timezone: meeting.data.timezone,
+                start: meeting.data.workdayStart,
+                end: meeting.data.workdayEnd,
+                minutes: meeting.data.slotIntervalMinutes,
+                duration: formatDuration(meeting.data.meetingDurationMinutes),
+              },
+            )}
           </span>
         </div>
 
@@ -241,7 +247,7 @@ export default function PublicMeetingPage() {
             <div>
               <p className="font-medium">{t("Responses are closed")}</p>
               <p className="mt-1 text-primary/65">
-                {meeting.data.closedReason}
+                {meeting.data.closedReason ? t(meeting.data.closedReason) : null}
               </p>
             </div>
           </div>
@@ -276,8 +282,15 @@ export default function PublicMeetingPage() {
             <AvailabilityGrid
               key={participantSession.participant.id}
               meeting={meeting.data}
+              onSaved={() =>
+                queryClient.invalidateQueries({
+                  queryKey: ["public-meeting", token],
+                  exact: true,
+                })
+              }
               participantSession={participantSession}
               sessionToken={sessionToken}
+              showGuidanceOnMount={guidanceSessionToken === sessionToken}
               token={token}
             />
           )}
@@ -305,11 +318,19 @@ export default function PublicMeetingPage() {
   );
 }
 
-function formatDuration(minutes: number) {
-  if (minutes < 60) return `${minutes}-minute`;
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return `${hours}-${hours === 1 ? "hour" : "hours"}${remainder ? `-${remainder}-minute` : ""}`;
+function AvailabilityLoading() {
+  const { t } = useI18n();
+  return (
+    <div
+      className="mt-8 grid min-h-72 place-items-center rounded-lg border border-white/10 bg-black/10 text-sm text-muted-foreground"
+      role="status"
+    >
+      <span className="flex items-center gap-2">
+        <LoaderCircle className="size-4 animate-spin text-primary" />
+        {t("Loading availability calendar…")}
+      </span>
+    </div>
+  );
 }
 
 function JoinForm({
@@ -335,7 +356,7 @@ function JoinForm({
     onSuccess: ({ sessionToken, ...session }) => {
       onJoined(session, sessionToken);
       toast({
-        title: `Welcome, ${session.participant.displayName}`,
+        title: t("Welcome, {name}", { name: session.participant.displayName }),
         description: t("Select the times that work for you; changes autosave."),
         variant: "success",
       });
@@ -466,7 +487,7 @@ function JoinForm({
               setClientError(undefined);
               setDisplayName(event.target.value);
             }}
-            placeholder="Dhia"
+            placeholder={t("Display name")}
             value={displayName}
           />
           <p
@@ -508,7 +529,7 @@ function JoinForm({
                   }}
                   type="button"
                 >
-                  Try {suggestion}
+                  {t("Try {name}", { name: suggestion })}
                 </button>
               ))}
             </div>
@@ -621,12 +642,13 @@ function InvalidInvitation() {
 }
 
 function MeetingLoading() {
+  const { t } = useI18n();
   return (
     <main className="mx-auto min-h-svh max-w-6xl px-5 py-20" role="status">
       <div className="h-6 w-28 animate-pulse rounded bg-white/5" />
       <div className="mt-5 h-12 max-w-2xl animate-pulse rounded bg-white/5" />
       <div className="mt-8 h-72 animate-pulse rounded-2xl bg-white/[0.035]" />
-      <span className="sr-only">Loading invitation…</span>
+      <span className="sr-only">{t("Loading invitation…")}</span>
     </main>
   );
 }
@@ -669,6 +691,6 @@ function initials(displayName: string) {
   return normalizeDisplayName(displayName)
     .split(" ")
     .slice(0, 2)
-    .map((part) => part[0]?.toLocaleUpperCase("en-US"))
+    .map((part) => part[0]?.toLocaleUpperCase())
     .join("");
 }

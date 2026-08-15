@@ -1,3 +1,49 @@
 .brand-neon-blue {
   filter: none !important;
 }
+
+button[data-heatmap-cell="true"] {
+  overflow: hidden;
+}
+
+button[data-heatmap-cell="true"] > span.relative.z-10 {
+  visibility: hidden;
+}
+
+button[data-heatmap-cell="true"] [data-selection-floor="true"] {
+  display: none !important;
+}
+
+button[data-heatmap-cell="true"][data-selected="true"]::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 15px;
+  background: rgb(57 255 20);
+  box-shadow: none;
+}
+
+button[data-heatmap-cell="true"][data-available-count]::after {
+  content: attr(data-available-count);
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  color: rgb(248 250 252);
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 640px) {
+  [data-heatmap-presentation="true"] > div:has([data-selection-legend="true"]) {
+    margin-bottom: -1.875rem;
+    padding-right: 10rem;
+  }
+}

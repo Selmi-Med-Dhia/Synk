@@ -27,6 +27,54 @@ label.fixed[class*="backdrop-blur"],
   will-change: auto !important;
 }
 
+/*
+ * Availability tiles use the individual scale property rather than transform,
+ * so the dense-grid performance guard above stays intact. Selection gets a
+ * deliberate lift and overshoot; deselection overshoots through the resting
+ * size before returning to exactly 1x.
+ */
+button[data-heatmap-cell="true"] {
+  scale: 1;
+  isolation: isolate;
+  transform-origin: center center;
+  transition-property: scale !important;
+  transition-duration: 280ms !important;
+  transition-timing-function: cubic-bezier(0.2, 0.9, 0.25, 1.38) !important;
+}
+
+button[data-heatmap-cell="true"][data-selected="true"] {
+  z-index: 15 !important;
+  scale: 1.065;
+  transition-duration: 340ms !important;
+  transition-timing-function: cubic-bezier(0.16, 1.46, 0.3, 1) !important;
+  animation: synk-availability-select-flash 390ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button[data-heatmap-cell="true"]:active {
+  scale: 0.925;
+  transition-duration: 80ms !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1) !important;
+}
+
+/*
+ * Selection briefly brightens through the middle of the pop, then releases the
+ * filter entirely so the tile returns to its exact intended availability color.
+ */
+@keyframes synk-availability-select-flash {
+  0% {
+    filter: brightness(1);
+  }
+  44% {
+    filter: brightness(1.3);
+  }
+  70% {
+    filter: brightness(1.08);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
 /* Selected participant availability is a borderless green signal. */
 button[data-slot-start][aria-pressed="true"] {
   border: 0 !important;
@@ -35,6 +83,54 @@ button[data-slot-start][aria-pressed="true"] {
   box-shadow:
     0 0 24px -5px oklch(0.72 0.19 145 / 0.9),
     inset 0 0 14px oklch(0.93 0.12 145 / 0.28) !important;
+}
+
+/* Keep the compact availability marker simple and solid. */
+[data-selection-floor="true"] {
+  height: 6px !important;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: rgb(16 111 53) !important;
+  background-image: none !important;
+}
+
+[data-selection-floor="true"]::before {
+  content: none !important;
+}
+
+@keyframes synk-availability-hint-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(calc(100% + 2rem), 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes synk-availability-hint-exit {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(calc(100% + 2rem), 0, 0);
+  }
+}
+
+[data-availability-idle-hint="true"] {
+  animation:
+    synk-availability-hint-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    synk-availability-hint-exit 250ms ease-in 5.75s forwards;
+  will-change: transform, opacity;
+}
+
+/* A mobile inspection label is dismissed as soon as any page/track scrolls. */
+[data-heatmap-presentation="true"][data-mobile-tooltip-dismissed="true"]
+  [data-heatmap-tooltip="true"] {
+  display: none !important;
 }
 
 /*
@@ -89,9 +185,30 @@ p[class*="text-primary/65"] > span:first-child {
   display: none;
 }
 
+@media (max-width: 639px) {
+  /*
+   * Vertical finger motion remains native scrolling (and pinch zoom remains
+   * available), while horizontal motion over a quarter-hour tile stays in the
+   * pointer stream so Synk can use it for sweep selection.
+   */
+  button[data-heatmap-cell="true"] {
+    touch-action: pan-y pinch-zoom;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   button,
   [role="button"] {
     transform: none !important;
+  }
+
+  button[data-heatmap-cell="true"] {
+    scale: 1 !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  [data-availability-idle-hint="true"] {
+    animation: none !important;
   }
 }
